@@ -59,6 +59,25 @@ def bad_csrf_token(context, request):
 def page(context, request):
     return {}
 
+# Serve the Firefox extension.
+@view_config(name='hypothesis.xpi')
+def firefox_extension(context, request):
+    import os.path
+    import subprocess
+    from pyramid.response import FileResponse
+    # On the first request, we will have to build it ourselves.
+    # Building may take a few seconds, as we first download the SDK and clone
+    # the addon repo.
+    extension_directory = 'h/browser/firefox'
+    filename = extension_directory + '/hypothesis.xpi'
+    if not os.path.isfile(filename):
+        # Link the extension to the currently used domain name
+        base_url = request.resource_url(context)
+        subprocess.call(["bash", "build_firefox_extension.sh", base_url],
+                        cwd=extension_directory)
+    return FileResponse(filename,
+        request=request,
+        content_type='application/x-xpinstall')
 
 @view_defaults(context='h.models.Annotation', layout='annotation')
 class AnnotationController(object):
