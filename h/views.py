@@ -60,22 +60,31 @@ def bad_csrf_token(context, request):
 def page(context, request):
     return {}
 
-
-@view_defaults(context='h.models.Annotation', layout='annotation')
+@view_defaults(context='h.models.Annotation',
+               # The containment predicate ensures we don't respond to an API
+               # call, by checking that the parent resource is the /a/<id> one.
+               containment='h.resources.AnnotationFactory_Display',
+               layout='annotation',
+               accept='text/html',
+               renderer='templates/displayer.pt'
+               )
 class AnnotationController(object):
-    def __init__(self, request):
+    def __init__(self, context, request):
         self.request = request
-        self.Store = request.registry.getUtility(interfaces.IStoreClass)
+        self.context = context
 
-    @view_config(accept='text/html', renderer='templates/displayer.pt')
+    @view_config()
     def __html__(self):
         request = self.request
-        context = request.context
+        context = self.context
 
         d = url_values_from_document(context)
         d['annotation'] = context
 
-        referrers = self.Store(request).search(references=context['id'])
+        Annotation = request.registry.getUtility(interfaces.IAnnotationClass)
+        referrers = Annotation.search(
+            query={'references': context['id']}
+        )
         d['annotation']['referrers'] = referrers
 
         if context.get('references', []):
@@ -94,10 +103,6 @@ class AnnotationController(object):
         context['date'] = context['updated']
 
         return {'annotation': json.dumps(d)}
-
-    @view_config(accept='application/json', renderer='json')
-    def __call__(self):
-        return self.request.context
 
 
 @view_config(
