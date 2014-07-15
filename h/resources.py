@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import logging
 
+from pyramid import httpexceptions
 from pyramid.interfaces import ILocation
 from pyramid.security import Allow, Everyone, Authenticated, ALL_PERMISSIONS
-from pyramid import httpexceptions
 from zope.interface import implementer
 
 from h import interfaces, security
@@ -95,44 +95,17 @@ class AnnotationFactory(BaseResource):
     def __getitem__(self, key):
         annotation = self.Annotation.fetch(key)
         if annotation is None:
-            raise httpexceptions.HTTPNotFound(
-                body_template=
-                "Either no annotation exists with this identifier, or you "
-                "don't have the permissions required for viewing it."
-            )
+            raise KeyError(key)
         annotation.__name__ = key
         annotation.__parent__ = self
 
         return annotation
 
-"""
-We create two names for the same resource, so we can distinguish which view to
-use. We wish to return the JSON representation when the Annotation has been
-created as part of an API call (/api/annotation/<id>), and to return a shiny
-HTML page when /a/<id> was requested.
-"""
-class AnnotationFactory_API(AnnotationFactory):
-    pass
-class AnnotationFactory_Display(AnnotationFactory):
-    pass
-
-
-class APISearchResource(BaseResource):
-    """Triggered on /api/search"""
-    pass
-
-class APITokenResource(BaseResource):
-    """Triggered on /api/token"""
-    pass
-
 class APIResource(InnerResource):
-    """Triggered on /api/"""
-    annotations = AnnotationFactory_API
-    search = APISearchResource
-    token = APITokenResource
+    annotations = AnnotationFactory
 
 class RootFactory(Stream, InnerResource):
-    a = AnnotationFactory_Display
+    a = AnnotationFactory
     t = TagStreamFactory
     u = UserStreamFactory
     api = APIResource
@@ -141,7 +114,6 @@ class RootFactory(Stream, InnerResource):
     def __acl__(self):  # pylint: disable=no-self-use
         defaultlist = [
             (Allow, 'group:admin', ALL_PERMISSIONS),
-            (Allow, Everyone, 'search'),
             (Allow, Authenticated, 'create'),
             (Allow, security.Authorizations, 'account'),
         ]

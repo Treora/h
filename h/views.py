@@ -3,6 +3,7 @@ import json
 import logging
 
 from pyramid import httpexceptions
+from pyramid.config import not_
 from pyramid.view import view_config, view_defaults
 
 from h import interfaces
@@ -61,9 +62,8 @@ def page(context, request):
     return {}
 
 @view_defaults(context='h.models.Annotation',
-               # The containment predicate ensures we don't respond to an API
-               # call, by checking that the parent resource is the /a/<id> one.
-               containment='h.resources.AnnotationFactory_Display',
+               # XXX: This predicate ensures we don't respond to an API call
+               containment=not_('h.resources.APIResource'),
                layout='annotation',
                accept='text/html',
                renderer='templates/displayer.pt'

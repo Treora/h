@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 import os
 import urlparse
 import uuid
@@ -13,6 +14,7 @@ from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
+log = logging.getLogger(__name__)
 
 def includeme(config):
     config.set_root_factory('h.resources.RootFactory')
@@ -65,4 +67,14 @@ def main(global_config, **settings):
         settings['mail.port'] = os.environ['MAIL_PORT_25_TCP_PORT']
 
     settings.update(global_config)
+
+    # Possibly override this setting, for Docker linked containers support
+    if 'ELASTICSEARCH_PORT' in os.environ:
+        if 'es.host' in settings:
+            log.warning("Overwriting es.host setting using ELASTICSEARCH_PORT "
+                        "environment variable")
+        settings['es.host'] = 'http%s' % (
+            os.environ['ELASTICSEARCH_PORT'][3:],
+        )
+
     return create_app(settings)
