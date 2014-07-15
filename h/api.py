@@ -58,8 +58,9 @@ def api_config(**kwargs):
 
 @api_config(context='h.resources.APIResource')
 def index(context, request):
-    """Return the API descriptor from which the front-end application will
-    determine the endpoints to use for each action.
+    """Return the API descriptor document
+
+    Clients may use this to discover endpoints for the API.
     """
     return {
         'message': "Annotator Store API",
@@ -95,37 +96,40 @@ def index(context, request):
     }
 
 
-@api_config(context='h.resources.APIResource',
-            name='search')
+@api_config(context='h.resources.APIResource', name='search')
 def api_search(context, request):
     """Search the database for annotations matching with the given query."""
     registry = request.registry
 
     kwargs = dict()
     params = dict(request.params)
+
     # Take limit and offset out of the parameters
     if 'offset' in params:
         try:
             kwargs['offset'] = int(params.pop('offset'))
         except ValueError:
-            pass # raise error?
+            pass  # raise error?
+
     if 'limit' in params:
         try:
             kwargs['limit'] = int(params.pop('limit'))
         except ValueError:
-            pass # raise error?
+            pass  # raise error?
 
     # All remaining parameters are considered searched fields.
     kwargs['query'] = params
+
     # Lowercase all.
     # See https://github.com/openannotation/annotator-store/issues/77 and 73
-    for field in params: params[field] = params[field].lower()
+    for field in params:
+        params[field] = params[field].lower()
 
     # The search results are filtered for the authenticated user
     user = get_user(request)
-    log.debug("Searching with user=%s, for uri=%s"
-        % (user.id if user else 'None',
-            params.get('uri')))
+    log.debug("Searching with user=%s, for uri=%s",
+              user.id if user else 'None',
+              params.get('uri'))
     kwargs['user'] = user
 
     Annotation = registry.queryUtility(interfaces.IAnnotationClass)
@@ -137,9 +141,8 @@ def api_search(context, request):
         'total': total,
     }
 
-@api_config(context='h.resources.APIResource',
-            name='token',
-            renderer="string")
+
+@api_config(context='h.resources.APIResource', name='token', renderer='string')
 def api_token(context, request):
     """Return the user's API authentication token."""
     # Get the OAuth response object and obtain the token string from it
@@ -147,12 +150,12 @@ def api_token(context, request):
     return tokenbody.get('access_token', '')
 
 
-@api_config(context='h.resources.AnnotationFactory',
-            request_method="GET")
+@api_config(context='h.resources.AnnotationFactory', request_method='GET')
 def annotations_index(context, request):
     """Do a search for all annotations on anything and return results.
-        This will use the default limit, 20 at time of writing, and results
-        are ordered most recent first.
+
+    This will use the default limit, 20 at time of writing, and results
+    are ordered most recent first.
     """
     Annotation = context.Annotation
     user = get_user(request)
@@ -160,12 +163,10 @@ def annotations_index(context, request):
 
 
 @api_config(context='h.resources.AnnotationFactory',
-            request_method="POST",
-            permission="create")
+            request_method='POST',
+            permission='create')
 def create(context, request):
-    """Read the POSTed JSON-encoded annotation and stored it into
-       annotator-store.
-    """
+    """Read the POSTed JSON-encoded annotation and persist it."""
     Annotation = context.Annotation
 
     # Read the annotation that is to be stored
@@ -173,8 +174,8 @@ def create(context, request):
         fields = request.json_body
     except ValueError:
         return _api_error(request,
-                          "No JSON payload sent. Annotation not created.",
-                          status = 400) # Client Error: Bad Request
+                          'No JSON payload sent. Annotation not created.',
+                          status=400)  # Client Error: Bad Request
 
     # Some fields are not to be set by the user, ignore them
     for field in FIELDS_SET_INTERNALLY:
@@ -184,13 +185,13 @@ def create(context, request):
 
     # Set user and consumer fields
     user = get_user(request)
-    assert user is not None # Because creation requires authentication
+    assert user is not None  # Because creation requires authentication
 
     annotation['user'] = user.id
     annotation['consumer'] = user.consumer.key
 
-    log.debug("User: %s" % annotation['user'])
-    log.debug("Consumer key: %s" % annotation['consumer'])
+    log.debug('User: %s' % annotation['user'])
+    log.debug('Consumer key: %s' % annotation['consumer'])
 
     # Save it in the database
     annotation.save()
@@ -199,14 +200,13 @@ def create(context, request):
     event = events.AnnotationEvent(request, annotation, 'create')
     request.registry.notify(event)
 
-
     # Return it so the client gets to know its ID and such
     return annotation
 
 
 @api_config(context='h.interfaces.IAnnotationClass',
-            request_method="GET",
-            permission="read")
+            request_method='GET',
+            permission='read')
 def read(context, request):
     """Return the annotation (simply how it was stored in the database)"""
     annotation = context
@@ -215,13 +215,12 @@ def read(context, request):
     event = events.AnnotationEvent(request, annotation, 'read')
     request.registry.notify(event)
 
-
     return annotation
 
 
 @api_config(context='h.interfaces.IAnnotationClass',
-            request_method="PUT",
-            permission="update")
+            request_method='PUT',
+            permission='update')
 def update(context, request):
     """Update the fields we received and store the updated version"""
     annotation = context
@@ -231,8 +230,8 @@ def update(context, request):
         fields = request.json_body
     except ValueError:
         return _api_error(request,
-                          "No JSON payload sent. Annotation not created.",
-                          status = 400) # Client Error: Bad Request
+                          'No JSON payload sent. Annotation not created.',
+                          status=400)  # Client Error: Bad Request
 
     # Some fields are not to be set by the user, ignore them
     for field in FIELDS_SET_INTERNALLY:
@@ -247,8 +246,8 @@ def update(context, request):
         if not request.has_permission('admin', annotation):
             return _api_error(
                 request,
-                "Not authorized to change annotation permissions.",
-                status = 401) # Unauthorized
+                'Not authorized to change annotation permissions.',
+                status=401)  # Unauthorized
 
     # Update the annotation with the new data
     annotation.update(fields)
@@ -264,14 +263,13 @@ def update(context, request):
     event = events.AnnotationEvent(request, annotation, 'update')
     request.registry.notify(event)
 
-
     # Return the updated version that was just stored.
     return annotation
 
 
 @api_config(context='h.interfaces.IAnnotationClass',
-            request_method="DELETE",
-            permission="delete")
+            request_method='DELETE',
+            permission='delete')
 def delete(context, request):
     """Delete the annotation permanently."""
     annotation = context
@@ -282,7 +280,6 @@ def delete(context, request):
     # Notify any subscribers
     event = events.AnnotationEvent(request, annotation, 'delete')
     request.registry.notify(event)
-
 
     # Return a confirmation
     return {
@@ -333,6 +330,7 @@ def store_from_settings(settings):
 
     return es
 
+
 def create_db():
     """Create the ElasticSearch index for Annotations and Documents"""
     try:
@@ -341,15 +339,15 @@ def create_db():
         if not e.error.startswith('IndexAlreadyExistsException'):
             raise
     except elasticsearch_exceptions.ConnectionError as e:
-        msg = 'Can not access ElasticSearch at {0}! ' \
-                'Check to ensure it is running.' \
-                .format(es.host)
+        msg = ('Can not access ElasticSearch at {0}! '
+               'Check to ensure it is running.').format(es.host)
         raise elasticsearch_exceptions.ConnectionError('N/A', msg, e)
     es.conn.cluster.health(wait_for_status='yellow')
     # Should we use registry.queryUtility(interfaces.IAnnotationClass) ?
     models.Annotation.update_settings()
     models.Annotation.create_all()
     models.Document.create_all()
+
 
 def delete_db():
     # Should we use registry.queryUtility(interfaces.IAnnotationClass) ?

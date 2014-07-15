@@ -101,8 +101,10 @@ class AnnotationFactory(BaseResource):
 
         return annotation
 
+
 class APIResource(InnerResource):
     annotations = AnnotationFactory
+
 
 class RootFactory(Stream, InnerResource):
     a = AnnotationFactory
