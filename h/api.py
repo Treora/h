@@ -67,28 +67,28 @@ def index(context, request):
             'annotation': {
                 'create': {
                     'method': 'POST',
-                    'url': _url_for(request, 'create'),
+                    'url': request.resource_url(context, 'annotations'),
                     'desc': "Create a new annotation"
                 },
                 'read': {
                     'method': 'GET',
-                    'url': _url_for(request, 'read'),
+                    'url': request.resource_url(context, 'annotations', ':id'),
                     'desc': "Get an existing annotation"
                 },
                 'update': {
                     'method': 'PUT',
-                    'url': _url_for(request, 'update'),
+                    'url': request.resource_url(context, 'annotations', ':id'),
                     'desc': "Update an existing annotation"
                 },
                 'delete': {
                     'method': 'DELETE',
-                    'url': _url_for(request, 'delete'),
+                    'url': request.resource_url(context, 'annotations', ':id'),
                     'desc': "Delete an annotation"
                 }
             },
             'search': {
                 'method': 'GET',
-                'url': _url_for(request, 'search'),
+                'url': request.resource_url(context, 'search'),
                 'desc': 'Basic search API'
             },
         }
@@ -296,22 +296,6 @@ def delete(context, request):
         'deleted': True,
     }
 
-
-def _url_for(request, action):
-    # Can we somehow use resource_url instead to get a single source of truth?
-    api_path = ['api']
-    store_path = api_path + ['annotations']
-    paths = {
-        'create': store_path,
-        'read': store_path + [':id'],
-        'update': store_path + [':id'],
-        'delete': store_path + [':id'],
-
-        'search': api_path + ['search'],
-    }
-    path = paths[action]
-    url = request.resource_url(request.root, *path)
-    return url
 
 def _api_error(request, reason, status_code):
     request.response.status_code = status_code
