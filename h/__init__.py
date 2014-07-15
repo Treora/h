@@ -55,6 +55,12 @@ def create_app(settings):
 
 
 def main(global_config, **settings):
+    """Paste Deployment entry point
+
+    Reads settings and environment variables, returns a WSGI app.
+    See http://pythonpaste.org/deploy/ .
+    """
+
     overrides = _environment_overrides()
 
     settings.update(overrides)
@@ -68,6 +74,8 @@ def _environment_overrides():
 
     # DATABASE_URL matches the Heroku environment variable
     if 'DATABASE_URL' in os.environ:
+        log.info("Found DATABASE_URL environment variable. Overwriting "
+                 "sqlalchemy.url setting.")
         urlparse.uses_netloc.append("postgres")
         urlparse.uses_netloc.append("sqlite")
         url = list(urlparse.urlparse(os.environ["DATABASE_URL"]))
@@ -76,15 +84,21 @@ def _environment_overrides():
         overrides['sqlalchemy.url'] = urlparse.urlunparse(url)
 
     if 'ELASTICSEARCH_INDEX' in os.environ:
+        log.info("Found ELASTICSEARCH_INDEX environment variable. Overwriting "
+                 "es.index setting.")
         overrides['es.index'] = os.environ['ELASTICSEARCH_INDEX']
 
     # ELASTICSEARCH_PORT and MAIL_PORT match Docker container links
     if 'ELASTICSEARCH_PORT' in os.environ:
+        log.info("Found ELASTICSEARCH_PORT environment variable. Overwriting "
+                 "es.host setting.")
         es_host = os.environ['ELASTICSEARCH_PORT_9200_TCP_ADDR']
         es_port = os.environ['ELASTICSEARCH_PORT_9200_TCP_PORT']
         overrides['es.host'] = 'http://{}:{}'.format(es_host, es_port)
 
     if 'MAIL_PORT' in os.environ:
+        log.info("Found MAIL_PORT environment variable. Overwriting mail.host "
+                 "and mail.port settings.")
         mail_host = os.environ['MAIL_PORT_25_TCP_ADDR']
         mail_port = os.environ['MAIL_PORT_25_TCP_PORT']
         overrides['mail.host'] = mail_host
