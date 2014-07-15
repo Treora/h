@@ -5,15 +5,14 @@ rather than Flask. Also it includes Hypothes.is-specific modifications."""
 
 import json
 import logging
-import os
 
 from annotator import auth, es
 from elasticsearch import exceptions as elasticsearch_exceptions
 from pyramid.view import view_config
 from pyramid.settings import asbool
 
-from h import events, models, interfaces, resources
-from h.auth.local.oauth import LocalAuthenticationPolicy, get_consumer
+from h import events, models, interfaces
+from h.auth.local.oauth import get_consumer
 from h.auth.local.views import token as access_token
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
