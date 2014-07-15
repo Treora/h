@@ -16,6 +16,7 @@ del get_versions
 
 log = logging.getLogger(__name__)
 
+
 def includeme(config):
     config.set_root_factory('h.resources.RootFactory')
 
