@@ -305,11 +305,12 @@ def _api_error(request, reason, status_code):
     }
     return response_info
 
+
 def _anonymize_deletes(annotation):
     """Clear the author and remove the user from the annotation permissions"""
 
     # Delete the annotation author, if present
-    annotation.pop('user')
+    user = annotation.pop('user')
 
     # Remove the user from the permissions, but keep any others in place.
     permissions = annotation.get('permissions', {})
