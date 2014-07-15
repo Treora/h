@@ -30,7 +30,7 @@ http://docs.pylonsproject.org/projects/pyramid/en/latest/narr/viewconfig.html
 
 
 # These annotation fields are not to be set by the user.
-FIELDS_SET_INTERNALLY = ['created', 'updated', 'user', 'consumer', 'id']
+PROTECTED_FIELDS = ['created', 'updated', 'user', 'consumer', 'id']
 
 
 def get_user(request):
@@ -178,7 +178,7 @@ def create(context, request):
                           status=400)  # Client Error: Bad Request
 
     # Some fields are not to be set by the user, ignore them
-    for field in FIELDS_SET_INTERNALLY:
+    for field in PROTECTED_FIELDS:
         fields.pop(field, None)
     # Create Annotation instance
     annotation = Annotation(fields)
@@ -234,7 +234,7 @@ def update(context, request):
                           status=400)  # Client Error: Bad Request
 
     # Some fields are not to be set by the user, ignore them
-    for field in FIELDS_SET_INTERNALLY:
+    for field in PROTECTED_FIELDS:
         fields.pop(field, None)
 
     # If the user is changing access permissions, check if it's allowed.
