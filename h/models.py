@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from zope.interface import implementer
+from annotator import annotation, document
 from pyramid.decorator import reify
 from pyramid.i18n import TranslationStringFactory
 from pyramid.security import Allow, Authenticated, Everyone, ALL_PERMISSIONS
-from annotator import annotation, document
+from zope.interface import implementer
 
 from h import interfaces
 

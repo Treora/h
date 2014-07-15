@@ -3,6 +3,7 @@ import json
 import logging
 
 from pyramid import httpexceptions
+from pyramid.config import not_
 from pyramid.view import view_config, view_defaults
 
 from h import interfaces
@@ -39,6 +40,8 @@ def model(request):
 @view_config(
     layout='app',
     context='h.models.Annotation',
+    # XXX: This predicate ensures we don't respond to an API call
+    containment=not_('h.resources.APIResource'),
     renderer='h:templates/app.pt',
 )
 def annotation(context, request):
