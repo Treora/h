@@ -13,6 +13,10 @@ _ = TranslationStringFactory(__package__)
 
 @implementer(interfaces.IAnnotationClass)
 class Annotation(annotation.Annotation):
+
+    # Specify the base url for our annotations
+    jsonld_baseurl = 'https://hypothes.is/a/'
+
     def __acl__(self):
         acl = []
         # Convert annotator-store roles to pyramid principals
