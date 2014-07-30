@@ -170,6 +170,100 @@ class Annotation(annotation.Annotation):
         finally:
             cls.es.conn.indices.open(index=cls.es.index)
 
+    @property
+    def has_target(self):
+        """The targets of the annotation.
+
+           Returns a SpecificResource (= resource+selector) for each annotation
+           target (e.g. quote), If there are no specific targets, the url of the
+           page itself is declared as a target.
+
+           If the annotation is a reply to another, that one is also considered
+           to be a target.
+        """
+        targets = self.get('target')
+        targets_ld = []
+        if not targets:
+            # The annotation targets the page as a whole
+            targets_ld.append(self.get('uri'))
+        else:
+            # Build the SpecificResource for each target (probably only one).
+            if not isinstance(targets, list):
+                targets = [targets]
+            for target in targets:
+                target_ld = self.semantify_target(target)
+                targets_ld.append(target_ld)
+
+        # Each annotation being replied to is also considered a target.
+        references = self.get('references')
+        if references:
+            if not isinstance(references, list):
+                references = [references]
+            for reference in references:
+                # A reference is an annotation id, thus prefixed with the base
+                # URI it will be a valid target.
+                targets_ld.append(reference)
+
+        return targets_ld
+
+    @classmethod
+    def semantify_target(cls, target):
+        if target.get('id'):
+            # Target is specified by a URI.
+            return target['id']
+        selectors = target.get('selector')
+        if not isinstance(selectors, list):
+            selectors = [selectors]
+        selectors_ld = map(cls.semantify_selector, selectors)
+        if len(selectors_ld)==1:
+            selector_ld = selectors_ld[0]
+        else:
+            # SpecificResource allows only one selector, use oa:Choice.
+            selector_ld = {
+                '@type': 'oa:Choice',
+                'item': selectors_ld,
+                # The first selector is assigned to be the default
+                'default': selectors_ld[0]['@id'],
+            }
+        target_ld = {
+            '@type': 'oa:SpecificResource',
+            'hasSource': target['source'],
+            'hasSelector': selector_ld,
+        }
+        return target_ld
+
+    @staticmethod
+    def semantify_selector(selector):
+        selector_ld = {
+            '@id': '_:selector_%s' % hash(`selector`),
+        }
+        selector_type = selector.get('type')
+        if selector_type == 'RangeSelector':
+            selector_ld.update({
+                '@type': 'annotator:TextRangeSelector',
+                'annotator:startContainer': selector['startContainer'],
+                'annotator:endContainer': selector['endContainer'],
+                'annotator:startOffset': selector['startOffset'],
+                'annotator:endOffset': selector['endOffset'],
+            })
+        elif selector_type in ('TextPositionSelector',
+                               'DataPositionSelector'):
+            selector_ld.update({
+                '@type': 'oa:%s' % selector_type,
+                'start': selector['start'],
+                'end': selector['end'],
+            })
+        elif selector_type == 'TextQuoteSelector':
+            selector_ld.update({
+                '@type': 'TextQuoteSelector',
+                'exact': selector.get('exact'),
+                'prefix': selector.get('prefix'),
+                'suffix': selector.get('suffix'),
+            })
+        else:
+            raise ValueError("Unsupported Selector type: %s" % selector_type)
+        return selector_ld
+
 
 class Document(document.Document):
     pass
