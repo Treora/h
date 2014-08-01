@@ -7,6 +7,7 @@ import operator
 import re
 import urlparse
 
+from annotator import authz, es
 from dateutil.tz import tzutc
 from jsonpointer import resolve_pointer
 from jsonschema import validate
@@ -15,6 +16,7 @@ from pyramid_sockjs.session import Session
 import transaction
 
 from h import events, interfaces
+from h.auth.local.oauth import get_user
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -63,10 +65,10 @@ def url_values_from_document(annotation):
 def parent_values(annotation, request):
     if 'references' in annotation:
         registry = request.registry
-        store = registry.queryUtility(interfaces.IStoreClass)(request)
-        parent = store.read(annotation['references'][-1])
+        Annotation = registry.queryUtility(interfaces.IAnnotationClass)
+        parent = Annotation.fetch(annotation['references'][-1])
         if not ('quote' in parent):
-            grandparent = store.read(parent['references'][-1])
+            grandparent = Annotation.fetch(parent['references'][-1])
             parent['quote'] = grandparent['text']
 
         return parent
@@ -468,15 +470,16 @@ class StreamerSession(Session):
     def send_annotations(self):
         request = self.request
         registry = request.registry
-        store = registry.queryUtility(interfaces.IStoreClass)(request)
-        annotations = store.search_raw(self.query.query)
+        Annotation = registry.queryUtility(interfaces.IAnnotationClass)
+        user = get_user(request)
+        annotations = _search_raw(Annotation, query=self.query.query, user=user)
         self.received = len(annotations)
         send_annotations = []
         for annotation in annotations:
             try:
                 annotation.update(url_values_from_document(annotation))
                 if 'references' in annotation:
-                    parent = store.read(annotation['references'][-1])
+                    parent = Annotation.fetch(annotation['references'][-1])
                     if 'text' in parent:
                         annotation['quote'] = parent['text']
                 send_annotations.append(annotation)
@@ -529,6 +532,28 @@ class StreamerSession(Session):
             self.close()
         else:
             transaction.commit()
+
+
+def _search_raw(Annotation, query, user=None):
+    """Perform a search on Elasticsearch"""
+
+    # Add a filter for the authorized user
+    # (user=None implies only public annotations are obtained)
+    f = authz.permissions_filter(user)
+    if not f:
+        return [] # Refuse to perform the query
+    query['query'] = {'filtered': {'query': query['query'], 'filter': f}}
+
+    # Directly query the Elasticsearch database
+    result = es.conn.search(index=es.index,
+                   doc_type=Annotation.__type__,
+                   body=query)
+    hits = []
+    # Add the id to each annotation
+    for res in result['hits']['hits']:
+        res['_source']['id'] = res['_id']
+        hits.append(res['_source'])
+    return hits
 
 
 @subscriber(events.AnnotationEvent)
