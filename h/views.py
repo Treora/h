@@ -45,8 +45,7 @@ def model(request):
     renderer='h:templates/app.pt',
 )
 def annotation(context, request):
-    Store = request.registry.getUtility(interfaces.IStoreClass)
-    referrers = Store(request).search(references=context['id'])
+    referrers = context.search(references=context['id'])
     annotations = json.dumps([context] + referrers).replace('"', '\'')
     return {
         'init': 'loadAnnotations={}'.format(annotations)
