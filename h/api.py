@@ -9,6 +9,7 @@ import logging
 from annotator import auth, es
 from elasticsearch import exceptions as elasticsearch_exceptions
 from pyramid.view import view_config
+from pyramid.renderers import render
 from pyramid.settings import asbool
 
 from h import events, models, interfaces
@@ -34,15 +35,33 @@ PROTECTED_FIELDS = ['created', 'updated', 'user', 'consumer', 'id']
 
 
 def api_config(**kwargs):
-    """Set default view configuration"""
-    config = {
+    """Set common view configuration settings
+
+       In fact this creates two view configurations, one for JSON and one for
+       JSON-LD. Each triggers on the respective MIME type, and uses the
+       appropriate renderer to return the requested type.
+    """
+    common_config = {
         # XXX: The containment predicate ensures we only respond to API calls
         'containment': 'h.resources.APIResource',
-        'accept': 'application/json',
-        'renderer': 'json',
     }
+    config = dict(common_config,
+                  accept='application/json',
+                  renderer='json')
+    config_ld = dict(common_config,
+                     accept='application/ld+json',
+                     renderer='jsonld')
     config.update(kwargs)
-    return view_config(**config)
+    config_ld.update(kwargs)
+    if config_ld == config:
+        # If accept would somehow have been overridden, we need only one config.
+        return view_config(**config)
+    else:
+        # Compose two decorators, one for json, one for json-ld.
+        view_dec = view_config(**config)
+        view_dec_ld = view_config(**config_ld)
+        composed_dec = lambda wrapped: view_dec(view_dec_ld(wrapped))
+        return composed_dec
 
 
 @api_config(context='h.resources.APIResource')
@@ -344,6 +363,40 @@ def delete_db():
     models.Document.drop_all()
 
 
+class JsonLdRenderer(object):
+    """Runs the json renderer on the jsonld attribute of a given value.
+
+       Lists and dicts are processed elementwise/valuewise.
+    """
+    def __init__(self, info):
+        pass
+
+    def __call__(self, value, system):
+        request = system['request']
+        # Obtain the JSON-LD representation of the value
+        value_ld = self._convert_to_ld(value)
+
+        # Render it through the normal json renderer
+        res = render('json',
+                     value_ld,
+                     request=request)
+        request.response.content_type = 'application/ld+json'
+        return res
+
+    def _convert_to_ld(self, obj):
+        """Recursively process collections, converting each object with a jsonld
+           attribute.
+        """
+        if hasattr(obj, 'jsonld'):
+            return obj.jsonld
+        elif isinstance(obj, dict):
+            return {key: self._convert_to_ld(value) for key,value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._convert_to_ld(element) for element in obj]
+        else:
+            return obj
+
+
 def includeme(config):
     registry = config.registry
     settings = registry.settings
@@ -359,5 +412,7 @@ def includeme(config):
         delete_db()
     if asbool(settings.get('basemodel.should_create_all', True)):
         create_db()
+
+    config.add_renderer('jsonld', JsonLdRenderer)
 
     config.scan(__name__)
