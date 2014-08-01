@@ -12,7 +12,7 @@ from pyramid.view import view_config
 from pyramid.settings import asbool
 
 from h import events, models, interfaces
-from h.auth.local.oauth import get_consumer
+from h.auth.local.oauth import get_user
 from h.auth.local.views import token as access_token
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -31,17 +31,6 @@ http://docs.pylonsproject.org/projects/pyramid/en/latest/narr/viewconfig.html
 
 # These annotation fields are not to be set by the user.
 PROTECTED_FIELDS = ['created', 'updated', 'user', 'consumer', 'id']
-
-
-def get_user(request):
-    """Create a User object for annotator-store"""
-    settings = request.registry.settings
-    key = settings['api.key']
-    consumer = get_consumer(request, key)
-    userid = request.authenticated_userid
-    if userid is not None:
-        return auth.User(userid, consumer, False)
-    return None
 
 
 def api_config(**kwargs):

@@ -32,6 +32,17 @@ def get_consumer(request, key):
     return result
 
 
+def get_user(request):
+    """Create a User object for annotator-store"""
+    settings = request.registry.settings
+    key = settings['api.key']
+    consumer = get_consumer(request, key)
+    userid = request.authenticated_userid
+    if userid is not None:
+        return auth.User(userid, consumer, False)
+    return None
+
+
 class RequestValidator(RequestValidator):
     def __init__(self, request, *args, **kwargs):
         super(RequestValidator, self).__init__(*args, **kwargs)
