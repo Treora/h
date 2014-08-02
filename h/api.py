@@ -387,7 +387,10 @@ class JsonLdRenderer(object):
         """Recursively process collections, converting each object with a jsonld
            attribute.
         """
-        if hasattr(obj, 'jsonld'):
+
+        # We don't use hasattr as it fails silently on erroneous properties..
+        # if hasattr(obj, 'jsonld'):
+        if 'jsonld' in dir(obj):
             return obj.jsonld
         elif isinstance(obj, dict):
             return {key: self._convert_to_ld(value) for key,value in obj.items()}
