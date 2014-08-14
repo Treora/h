@@ -373,6 +373,12 @@ class JsonLdRenderer(object):
 
     def __call__(self, value, system):
         request = system['request']
+
+        # Set the used Annotation class and the OAAnnotation class
+        registry = request.registry
+        self.Annotation = registry.queryUtility(interfaces.IAnnotationClass)
+        self.OAAnnotation = models.OAAnnotation
+
         # Obtain the JSON-LD representation of the value
         value_ld = self._convert_to_ld(value)
 
@@ -387,13 +393,11 @@ class JsonLdRenderer(object):
         """Recursively process collections, converting each object with a jsonld
            attribute.
         """
-
-        # We don't use hasattr as it fails silently on erroneous properties..
-        # if hasattr(obj, 'jsonld'):
-        if 'jsonld' in dir(obj):
-            return obj.jsonld
+        if isinstance(obj, self.Annotation):
+            return self.OAAnnotation(obj).jsonld
         elif isinstance(obj, dict):
-            return {key: self._convert_to_ld(value) for key,value in obj.items()}
+            return {key: self._convert_to_ld(value)
+                    for key,value in obj.items()}
         elif isinstance(obj, list):
             return [self._convert_to_ld(element) for element in obj]
         else:

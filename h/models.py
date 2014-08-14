@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from annotator import annotation, document
+from annotator import annotation, document, openannotation
 from pyramid.decorator import reify
 from pyramid.i18n import TranslationStringFactory
 from pyramid.security import Allow, Authenticated, Everyone, ALL_PERMISSIONS
@@ -169,6 +169,9 @@ class Annotation(annotation.Annotation):
             )
         finally:
             cls.es.conn.indices.open(index=cls.es.index)
+
+
+class OAAnnotation(Annotation, openannotation.OAAnnotation):
 
     @property
     def has_target(self):
